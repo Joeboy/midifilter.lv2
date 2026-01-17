@@ -9,7 +9,7 @@ MFD_FILTER(sostenuto)
 			DOC_CHANF)
 	, TTF_IPORT( 1, "sostenuto",  "Sostenuto [sec]", 0.0, 600.0,  0.0, units:unit units:s ;
 			rdfs:comment "Time to delay the note-off signal.")
-	, TTF_IPORT( 2, "pedal",  "Pedal Mode", 0, 2, 1,
+	, TTF_IPORT( 2, "pedal",  "Pedal Mode", 0, 3, 1,
 			lv2:scalePoint [ rdfs:label "off" ; rdf:value 0 ] ;
 			lv2:scalePoint [ rdfs:label "on" ; rdf:value 1 ] ;
 			lv2:scalePoint [ rdfs:label "CC64" ; rdf:value 2 ] ;
