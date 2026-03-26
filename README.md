@@ -3,12 +3,13 @@ midifilter.lv2
 
 LV2 plugins to filter MIDI events.
 
-So far 33 MIDI event filters have been implemented:
+So far 34 MIDI event filters have been implemented:
 
 *   CC2Note -- translate control-commands to note-on/off messages
 *   Channel Filter -- discard messages per channel
 *   Channel Map -- map any MIDI-channel to another MIDI-channel
 *   Choke Filter -- trigger note-off events, create exclusive note-groups
+*   Chromatic Cluster -- create chord clusters from a single note
 *   Chord -- harmonizer - create chords from a single note in a given musical scale
 *   Delay -- delay MIDI events with optional randomization
 *   Dup -- unisono - duplicate MIDI events from one channel to another
