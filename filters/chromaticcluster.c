@@ -43,12 +43,20 @@ MFD_FILTER(chromaticcluster)
 			lv2:portProperty lv2:integer;
 			lv2:scalePoint [ rdfs:label "off" ; rdf:value 0 ] ;
 			)
+	, TTF_IPORT(10, "note10", "10th Note",  -24, 24,  0,
+			lv2:portProperty lv2:integer;
+			lv2:scalePoint [ rdfs:label "off" ; rdf:value 0 ] ;
+			)
+	, TTF_IPORT(11, "note11", "11th Note",  -24, 24,  0,
+			lv2:portProperty lv2:integer;
+			lv2:scalePoint [ rdfs:label "off" ; rdf:value 0 ] ;
+			)
 	; rdfs:comment "Similar to MIDI Chord harmonizer, this allows to create chromatic note clusters." ;
 	.
 
 #elif defined MX_CODE
 
-#define MAX_CLUSTER 9
+#define MAX_CLUSTER 11
 
 static inline void filter_chromaticcluster_noteon(MidiFilter* self, uint32_t tme, uint8_t chn, int note, uint8_t vel) {
 	uint8_t buf[3];
