@@ -1,5 +1,6 @@
 #!/usr/bin/make -f
 PREFIX ?= /usr/local
+PICOLV2 ?= 0
 
 PKG_CONFIG?=pkg-config
 STRIP?=strip
@@ -7,18 +8,22 @@ STRIPFLAGS?=-s
 
 ###############################################################################
 
-MACHINE=$(shell uname -m)
-ifneq (,$(findstring x64,$(MACHINE)))
-  HAVE_SSE=yes
-endif
-ifneq (,$(findstring 86,$(MACHINE)))
-  HAVE_SSE=yes
-endif
-
-ifeq ($(HAVE_SSE),yes)
-  OPTIMIZATIONS ?= -msse -msse2 -mfpmath=sse -ffast-math -fomit-frame-pointer -O3 -fno-finite-math-only -DNDEBUG
+ifeq ($(PICOLV2),1)
+  OPTIMIZATIONS ?= -O2 -fomit-frame-pointer -ffast-math -fno-finite-math-only -DNDEBUG
 else
-  OPTIMIZATIONS ?= -fomit-frame-pointer -O3 -fno-finite-math-only -DNDEBUG
+  MACHINE=$(shell uname -m)
+  ifneq (,$(findstring x64,$(MACHINE)))
+    HAVE_SSE=yes
+  endif
+  ifneq (,$(findstring 86,$(MACHINE)))
+    HAVE_SSE=yes
+  endif
+
+  ifeq ($(HAVE_SSE),yes)
+    OPTIMIZATIONS ?= -msse -msse2 -mfpmath=sse -ffast-math -fomit-frame-pointer -O3 -fno-finite-math-only -DNDEBUG
+  else
+    OPTIMIZATIONS ?= -fomit-frame-pointer -O3 -fno-finite-math-only -DNDEBUG
+  endif
 endif
 
 ###############################################################################
@@ -27,11 +32,11 @@ CFLAGS ?= $(OPTIMIZATIONS) -Wall
 midifilter_VERSION?=$(shell git describe --tags HEAD 2>/dev/null | sed 's/-g.*$$//;s/^v//' || echo "LV2")
 
 LV2DIR ?= $(PREFIX)/lib/lv2
-LOADLIBES=-lm
 LV2NAME=midifilter
 BUNDLE=midifilter.lv2
 BUILDDIR=build/
 targets=
+PICOLV2_RUNTIME_OBJ=
 
 ifneq ($(MOD),)
   MODBRAND=mod:brand \"x42\";
@@ -43,7 +48,18 @@ endif
 
 
 UNAME=$(shell uname)
-ifeq ($(UNAME),Darwin)
+ifeq ($(PICOLV2),1)
+  MCPU=-mcpu=cortex-m33 -mthumb -mfloat-abi=hard -mfpu=fpv5-sp-d16
+  CC=arm-none-eabi-gcc
+  CPP=arm-none-eabi-gcc -E
+  STRIP=arm-none-eabi-strip
+  LIB_EXT=.so
+  EXTENDED_RE=-r
+  override CFLAGS += $(MCPU) -fPIC -ffreestanding -fno-builtin -fvisibility=hidden -DPICOLV2 -idirafter /usr/include
+  LV2LDFLAGS=$(MCPU) -nostdlib -Wl,-Bsymbolic -Wl,-z,undefs -Wl,-z,max-page-size=0x1000 -Wl,--no-warnings
+  PICOLV2_RUNTIME_OBJ=$(BUILDDIR)picolv2-runtime.o
+  LOADLIBES=$(PICOLV2_RUNTIME_OBJ) -Wl,--start-group -lgcc -lc -lm -lnosys -Wl,--end-group
+else ifeq ($(UNAME),Darwin)
   LV2LDFLAGS=-dynamiclib
   LIB_EXT=.dylib
   EXTENDED_RE=-E
@@ -53,8 +69,10 @@ else
   LV2LDFLAGS=-Wl,-Bstatic -Wl,-Bdynamic
   LIB_EXT=.so
   EXTENDED_RE=-r
+  LOADLIBES=-lm
 endif
 
+ifneq ($(PICOLV2),1)
 ifneq ($(XWIN),)
   CC=$(XWIN)-gcc
   STRIP=$(XWIN)-strip
@@ -63,6 +81,7 @@ ifneq ($(XWIN),)
   override LDFLAGS += -static-libgcc -static-libstdc++
 else
   override CFLAGS += -fPIC -fvisibility=hidden
+endif
 endif
 
 targets+=$(BUILDDIR)$(LV2NAME)$(LIB_EXT)
@@ -142,7 +161,11 @@ $(BUILDDIR)$(LV2NAME).ttl: $(LV2NAME).ttl.in ttf.h filters.c
 		| uniq \
 		>> $(BUILDDIR)$(LV2NAME).ttl
 
-$(BUILDDIR)$(LV2NAME)$(LIB_EXT): $(LV2NAME).c midifilter.h filters.c
+$(BUILDDIR)picolv2-runtime.o: ../../lib/picolv2lib.c
+	@mkdir -p $(BUILDDIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -std=gnu11 -c $< -o $@
+
+$(BUILDDIR)$(LV2NAME)$(LIB_EXT): $(LV2NAME).c midifilter.h filters.c $(PICOLV2_RUNTIME_OBJ)
 	@mkdir -p $(BUILDDIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) \
 	  -o $(BUILDDIR)$(LV2NAME)$(LIB_EXT) $(LV2NAME).c \
@@ -173,7 +196,7 @@ uninstall:
 	-rmdir $(DESTDIR)$(LV2DIR)/$(BUNDLE)
 
 clean:
-	rm -f $(BUILDDIR)manifest.ttl $(BUILDDIR)presets.ttl $(BUILDDIR)$(LV2NAME).ttl $(BUILDDIR)$(LV2NAME)$(LIB_EXT) lv2syms filters.c
+	rm -f $(BUILDDIR)manifest.ttl $(BUILDDIR)presets.ttl $(BUILDDIR)$(LV2NAME).ttl $(BUILDDIR)$(LV2NAME)$(LIB_EXT) $(BUILDDIR)picolv2-runtime.o lv2syms filters.c
 	rm -rf $(BUILDDIR)modgui
 	-test -d $(BUILDDIR) && rmdir $(BUILDDIR) || true
 
